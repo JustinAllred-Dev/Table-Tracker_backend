@@ -28,6 +28,7 @@ function hasValidProperties(req, res, next) {
   const { data = {} } = req.body;
   const dateFormat = /\d\d\d\d-\d\d-\d\d/;
   const timeFormat = /\d\d:\d\d/;
+
   const invalidFields = Object.keys(data).filter(
     (field) => !validProperties.includes(field)
   );
