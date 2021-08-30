@@ -17,7 +17,6 @@ function hasValidProperties(req, res, next) {
     (field) => !validProperties.includes(field)
   );
   const { reservation_date, reservation_time } = req.body.data;
-  const invalidDate = 2;
   const submitDate = new Date(reservation_date + " " + reservation_time);
   const dayAsNum = submitDate.getDay();
   const today = new Date();
@@ -46,7 +45,7 @@ function hasValidProperties(req, res, next) {
         `The date and time must be in the future. Today is ${today}.`
       );
     }
-    if (dayAsNum === invalidDate) {
+    if (dayAsNum === 2) {
       errors.push(
         `The restaurant is closed on Tuesdays. Please select a different day.`
       );
