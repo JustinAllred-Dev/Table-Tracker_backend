@@ -28,10 +28,10 @@ function hasValidProperties(req, res, next) {
   const { data = {} } = req.body;
   const dateFormat = /\d\d\d\d-\d\d-\d\d/;
   const timeFormat = /\d\d:\d\d/;
-
   const invalidFields = Object.keys(data).filter(
     (field) => !validProperties.includes(field)
   );
+
   try {
     if (invalidFields.length) {
       throw {
@@ -63,6 +63,44 @@ function hasValidProperties(req, res, next) {
   }
 }
 
+function isDuringStoreHours(req, res, next) {
+  const { reservation_date, reservation_time } = req.body.data;
+  const invalidDate = 2;
+  const submitDate = new Date(reservation_date + " " + reservation_time);
+  const dayAsNum = submitDate.getDay();
+  const today = new Date();
+
+  try {
+    if (submitDate < today) {
+      throw {
+        status: 400,
+        message: `The date and time cannot be in the past. Today is ${today}.`,
+      };
+    }
+    if (dayAsNum === invalidDate) {
+      throw {
+        status: 400,
+        message: `The restaurant is not open on Tuesdays. Please select a different day.`,
+      };
+    }
+    if (reservation_time < "10:29:59") {
+      throw {
+        status: 400,
+        message: "The restaurant does not open until 10:30 a.m.",
+      };
+    }
+    if (reservation_time >= "21:30:00") {
+      throw {
+        status: 400,
+        message: `The restaurant closes at 22:30 (10:30 pm). Please schedule your reservation at least one hour before close.`,
+      };
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function list(req, res, next) {
   const { date } = req.query;
   try {
@@ -83,5 +121,5 @@ async function create(req, res, next) {
 
 module.exports = {
   list: [list],
-  create: [hasProperties, hasValidProperties, create],
+  create: [hasProperties, hasValidProperties, isDuringStoreHours, create],
 };
