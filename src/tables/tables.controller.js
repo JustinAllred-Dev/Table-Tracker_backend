@@ -41,33 +41,48 @@ function tableValidProperties(req, res, next) {
   }
 }
 
+async function tableExists(req, res, next) {
+  try {
+    const tableId = req.params.table_id || req.body.data.table_id;
+    const table = await service.read(tableId);
+    if (!table) {
+      throw { status: 404, message: `Table not found:${req.params.table_id}` };
+    }
+    res.locals.tableId = tableId;
+    res.locals.table = table;
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function seatingValidProperties(req, res, next) {
   try {
     if (!req.body.data || !req.body.data.reservation_id) {
       throw { status: 400, message: `please enter a valid reservation_id` };
     }
 
-    const tableId = req.params.table_id || req.body.data.table_id;
+    //const tableId = req.params.table_id || req.body.data.table_id;
     const reservationId = req.body.data.reservation_id;
-    const table = await service.read(tableId);
+    //const table = await service.read(tableId);
     const reservation = await reservationsService.read(reservationId);
 
-    if (!table) {
-      throw { status: 404, message: `Table not found:${req.params.table_id}` };
-    }
+    // if (!table) {
+    //   throw { status: 404, message: `Table not found:${req.params.table_id}` };
+    // }
     if (!reservation) {
       throw {
         status: 404,
         message: `Reservation not found:${req.body.data.reservation_id}`,
       };
     }
-    if (table.occupied === true) {
+    if (res.locals.table.occupied === true) {
       throw {
         status: 400,
         message: `This table is currently occupied, select another table`,
       };
     }
-    if (reservation.people > table.capacity) {
+    if (reservation.people > res.locals.table.capacity) {
       throw {
         status: 400,
         message: `Reservation capacity is greater than table capacity`,
@@ -97,23 +112,21 @@ async function create(req, res, next) {
 }
 
 async function update(req, res, next) {
-  const tableId = req.params.table_id || req.body.data.table_id;
   const reservationId = req.body.data.reservation_id;
   try {
-    res
-      .status(200)
-      .json({ data: await service.updateTable(reservationId, tableId) });
+    res.status(200).json({
+      data: await service.updateTable(reservationId, res.locals.tableId),
+    });
   } catch (err) {
     next(err);
   }
 }
 
 async function occupiedCheck(req, res, next) {
-  const tableId = req.params.table_id || req.body.data.table_id;
   try {
-    const table = await service.read(tableId);
+    const table = await service.read(res.locals.tableId);
     if (table.occupied == false) {
-      throw { status: 400, message: "the table is already free to seat." };
+      throw { status: 400, message: "the table is alread not occupied." };
     }
     next();
   } catch (err) {
@@ -122,9 +135,10 @@ async function occupiedCheck(req, res, next) {
 }
 
 async function destroy(req, res, next) {
-  const tableId = req.params.table_id || req.body.data.table_id;
   try {
-    res.status(200).json({ data: await service.clearTable(tableId) });
+    res
+      .status(200)
+      .json({ data: await service.clearTable(res.locals.tableId) });
   } catch (err) {
     next(err);
   }
@@ -133,6 +147,6 @@ async function destroy(req, res, next) {
 module.exports = {
   list: [list],
   create: [tableValidProperties, create],
-  update: [seatingValidProperties, update],
-  destroy: [occupiedCheck, destroy],
+  update: [tableExists, seatingValidProperties, update],
+  destroy: [tableExists, occupiedCheck, destroy],
 };
