@@ -23,4 +23,11 @@ function create(table) {
     .then((createdRecords) => createdRecords[0]);
 }
 
-module.exports = { listTables, create, updateTable, read };
+const clearTable = (tableId) => {
+  return knex("tables")
+    .where({ table_id: tableId })
+    .update({ reservation_id: null, occupied: false })
+    .returning("*");
+};
+
+module.exports = { listTables, create, updateTable, read, clearTable };

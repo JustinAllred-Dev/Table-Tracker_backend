@@ -108,8 +108,31 @@ async function update(req, res, next) {
   }
 }
 
+async function occupiedCheck(req, res, next) {
+  const tableId = req.params.table_id || req.body.data.table_id;
+  try {
+    const table = await service.read(tableId);
+    if (table.occupied == false) {
+      throw { status: 400, message: "the table is already free to seat." };
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function destroy(req, res, next) {
+  const tableId = req.params.table_id || req.body.data.table_id;
+  try {
+    res.status(200).json({ data: await service.clearTable(tableId) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   list: [list],
   create: [tableValidProperties, create],
   update: [seatingValidProperties, update],
+  destroy: [occupiedCheck, destroy],
 };
