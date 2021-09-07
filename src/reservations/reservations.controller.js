@@ -89,21 +89,39 @@ async function isDuringHours(req, res, next) {
     next(err);
   }
 }
+async function reservationExists(req, res, next) {
+  const { reservation_Id } = req.params;
+  try {
+    const foundRes = await service.read(reservation_Id);
+    if (foundRes) {
+      res.locals.res = foundRes;
+      // console.log(res.locals.res);
+      return next();
+    } else {
+      throw {
+        status: 404,
+        message: `No reservation found for id ${reservation_Id}.`,
+      };
+    }
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function read(req, res) {
+  try {
+    res.json({ data: await service.read(res.locals.res.reservation_id) });
+  } catch (err) {
+    next(err);
+  }
+}
 
 async function list(req, res, next) {
   const { date } = req.query;
-  if (date) {
-    try {
-      res.status(200).json({ data: await service.listByDate(date) });
-    } catch (err) {
-      next(err);
-    }
-  } else {
-    try {
-      res.status(200).json({ data: await service.listAll() });
-    } catch (err) {
-      next(err);
-    }
+  try {
+    res.status(200).json({ data: await service.listByDate(date) });
+  } catch (err) {
+    next(err);
   }
 }
 
@@ -119,4 +137,5 @@ async function create(req, res, next) {
 module.exports = {
   list: [list],
   create: [hasValidProperties, isDuringHours, create],
+  read: [reservationExists, read],
 };

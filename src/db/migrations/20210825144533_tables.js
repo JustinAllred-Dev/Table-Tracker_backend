@@ -11,6 +11,7 @@ exports.up = function (knex) {
       .index()
       .references("reservation_id")
       .inTable("reservations");
+    table.boolean("occupied").defaultTo(false).notNullable();
     table.timestamps(true, true);
   });
 };

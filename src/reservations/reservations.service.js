@@ -6,9 +6,8 @@ function listByDate(date) {
     .where({ reservation_date: date })
     .orderBy("reservation_time", "asc");
 }
-
-function listAll() {
-  return knex("reservations").select("*").orderBy("reservation_date", "asc");
+function read(reservationId) {
+  return knex("reservations").where({ reservation_id: reservationId }).first();
 }
 
 function create(reservation) {
@@ -18,4 +17,4 @@ function create(reservation) {
     .then((createdRecords) => createdRecords[0]);
 }
 
-module.exports = { listByDate, listAll, create };
+module.exports = { listByDate, read, create };
