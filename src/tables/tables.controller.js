@@ -5,6 +5,9 @@ const validProperties = ["table_name", "capacity"];
 
 function tableValidProperties(req, res, next) {
   const newTable = req.body.data;
+  if (!newTable) {
+    throw { status: 400, message: "please choose a table." };
+  }
   const invalidFields = Object.keys(newTable).filter(
     (field) => !validProperties.includes(field)
   );
@@ -14,9 +17,6 @@ function tableValidProperties(req, res, next) {
         throw { status: 400, message: `A '${property}' property is required.` };
       }
     });
-    if (!newTable) {
-      throw { status: 400, message: "please choose a table." };
-    }
     if (invalidFields.length && invalidFields[0] !== "reservation_id") {
       throw {
         status: 400,
@@ -89,6 +89,19 @@ async function seatingValidProperties(req, res, next) {
   }
 }
 
+async function validReservationStatus(req, res, next) {
+  const reservationId = req.body.data.reservation_id;
+  try {
+    const thisReservation = await reservationsService.read(reservationId);
+    if (thisReservation.status === "seated") {
+      throw { status: 400, message: "this reservation is already seated" };
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function list(req, res, next) {
   try {
     res.status(200).json({ data: await service.listTables() });
@@ -105,12 +118,8 @@ async function create(req, res, next) {
     } else {
       const newTable = await service.create(data);
       const reservationId = req.body.data.reservation_id;
-      const updatedTable = await service.updateTable(
-        reservationId,
-        newTable.table_id
-      );
       res.status(200).json({
-        data: updatedTable[0],
+        data: await service.updateTable(reservationId, newTable.table_id),
       });
     }
   } catch (err) {
@@ -121,6 +130,7 @@ async function create(req, res, next) {
 async function update(req, res, next) {
   const reservationId = req.body.data.reservation_id;
   try {
+    await reservationsService.updateStatus(reservationId, "seated");
     res.status(200).json({
       data: await service.updateTable(reservationId, res.locals.tableId),
     });
@@ -143,6 +153,10 @@ async function occupiedCheck(req, res, next) {
 
 async function destroy(req, res, next) {
   try {
+    await reservationsService.updateStatus(
+      res.locals.table.reservation_id,
+      "finished"
+    );
     res
       .status(200)
       .json({ data: await service.clearTable(res.locals.tableId) });
@@ -154,6 +168,6 @@ async function destroy(req, res, next) {
 module.exports = {
   list: [list],
   create: [tableValidProperties, create],
-  update: [tableExists, seatingValidProperties, update],
+  update: [tableExists, seatingValidProperties, validReservationStatus, update],
   destroy: [tableExists, occupiedCheck, destroy],
 };

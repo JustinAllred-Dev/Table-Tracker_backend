@@ -9,8 +9,10 @@ const validProperties = [
   "people",
 ];
 
+const validStatus = ["booked", "seated", "finished"];
+
 function hasValidProperties(req, res, next) {
-  const { data = {} } = req.body;
+  const data = req.body.data;
   const dateFormat = /\d\d\d\d-\d\d-\d\d/;
   const timeFormat = /\d\d:\d\d/;
   const invalidFields = Object.keys(data).filter(
@@ -23,10 +25,16 @@ function hasValidProperties(req, res, next) {
         throw { status: 400, message: `A '${property}' property is required.` };
       }
     });
-    if (invalidFields.length) {
+    if (invalidFields.length && invalidFields[0] !== "status") {
       throw {
         status: 400,
         message: `Invalid field(s): ${invalidFields.join(", ")}`,
+      };
+    }
+    if (data.status && data.status !== "booked") {
+      throw {
+        status: 400,
+        message: "new reservation status can not be seated or finished",
       };
     }
     if (typeof data.people !== "number" || data.people < 1) {
@@ -107,6 +115,29 @@ async function reservationExists(req, res, next) {
   }
 }
 
+async function validReservationUpdate(req, res, next) {
+  const id = res.locals.res.reservation_id;
+  const status = req.body.data.status;
+  try {
+    const thisReservation = await service.read(id);
+    if (thisReservation.status === "finished") {
+      throw {
+        status: 400,
+        message: "a finished reservation can not be updated",
+      };
+    }
+    if (!validStatus.includes(status)) {
+      throw {
+        status: 400,
+        message: `status must be either booked, seated, or finished, not ${status}`,
+      };
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function read(req, res) {
   try {
     res.json({ data: await service.read(res.locals.res.reservation_id) });
@@ -133,8 +164,21 @@ async function create(req, res, next) {
   }
 }
 
+async function update(req, res, next) {
+  const id = res.locals.res.reservation_id;
+  const status = req.body.data.status;
+  try {
+    res
+      .status(200)
+      .json({ data: { status: await service.updateStatus(id, status) } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   list: [list],
   create: [hasValidProperties, isDuringHours, create],
   read: [reservationExists, read],
+  update: [reservationExists, validReservationUpdate, update],
 };
