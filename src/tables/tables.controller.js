@@ -4,32 +4,32 @@ const reservationsService = require("../reservations/reservations.service");
 const validProperties = ["table_name", "capacity"];
 
 function tableValidProperties(req, res, next) {
-  const { data = {} } = req.body;
-  const invalidFields = Object.keys(data).filter(
+  const newTable = req.body.data;
+  const invalidFields = Object.keys(newTable).filter(
     (field) => !validProperties.includes(field)
   );
   try {
     validProperties.forEach((property) => {
-      if (!data[property]) {
+      if (!newTable[property]) {
         throw { status: 400, message: `A '${property}' property is required.` };
       }
     });
-    if (!data) {
+    if (!newTable) {
       throw { status: 400, message: "please choose a table." };
     }
-    if (invalidFields.length) {
+    if (invalidFields.length && invalidFields[0] !== "reservation_id") {
       throw {
         status: 400,
         message: `Invalid field(s): ${invalidFields.join(", ")}`,
       };
     }
-    if (data.table_name.length == 1 || 0) {
+    if (newTable.table_name.length == 1 || 0) {
       throw {
         status: 400,
         message: "the table_name field must be more than two characters long.",
       };
     }
-    if (typeof data.capacity !== "number" || data.capacity < 1) {
+    if (typeof newTable.capacity !== "number" || newTable.capacity < 1) {
       throw {
         status: 400,
         message: "the capacity field must be a number greater than zero.",
@@ -62,14 +62,9 @@ async function seatingValidProperties(req, res, next) {
       throw { status: 400, message: `please enter a valid reservation_id` };
     }
 
-    //const tableId = req.params.table_id || req.body.data.table_id;
     const reservationId = req.body.data.reservation_id;
-    //const table = await service.read(tableId);
     const reservation = await reservationsService.read(reservationId);
 
-    // if (!table) {
-    //   throw { status: 404, message: `Table not found:${req.params.table_id}` };
-    // }
     if (!reservation) {
       throw {
         status: 404,
@@ -105,7 +100,19 @@ async function list(req, res, next) {
 async function create(req, res, next) {
   const { data } = req.body;
   try {
-    res.status(201).json({ data: await service.create(data) });
+    if (!data.reservation_id) {
+      res.status(201).json({ data: await service.create(data) });
+    } else {
+      const newTable = await service.create(data);
+      const reservationId = req.body.data.reservation_id;
+      const updatedTable = await service.updateTable(
+        reservationId,
+        newTable.table_id
+      );
+      res.status(200).json({
+        data: updatedTable[0],
+      });
+    }
   } catch (err) {
     next(err);
   }

@@ -95,7 +95,6 @@ async function reservationExists(req, res, next) {
     const foundRes = await service.read(reservation_Id);
     if (foundRes) {
       res.locals.res = foundRes;
-      // console.log(res.locals.res);
       return next();
     } else {
       throw {
