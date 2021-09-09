@@ -1,6 +1,6 @@
 const service = require("./reservations.service");
 
-const validProperties = [
+const requiredProperties = [
   "first_name",
   "last_name",
   "mobile_number",
@@ -9,23 +9,29 @@ const validProperties = [
   "people",
 ];
 
-const validStatus = ["booked", "seated", "finished"];
+const waivedFields = ["reservation_id", "status", "created_at", "updated_at"];
+
+const validStatus = ["booked", "seated", "finished", "cancelled"];
 
 function hasValidProperties(req, res, next) {
   const data = req.body.data;
+  if (!data) {
+    throw { status: 400, message: "please fill out all fields." };
+  }
   const dateFormat = /\d\d\d\d-\d\d-\d\d/;
   const timeFormat = /\d\d:\d\d/;
   const invalidFields = Object.keys(data).filter(
-    (field) => !validProperties.includes(field)
+    (field) =>
+      !requiredProperties.includes(field) && !waivedFields.includes(field)
   );
 
   try {
-    validProperties.forEach((property) => {
+    requiredProperties.forEach((property) => {
       if (!data[property]) {
         throw { status: 400, message: `A '${property}' property is required.` };
       }
     });
-    if (invalidFields.length && invalidFields[0] !== "status") {
+    if (invalidFields.length) {
       throw {
         status: 400,
         message: `Invalid field(s): ${invalidFields.join(", ")}`,
@@ -115,7 +121,7 @@ async function reservationExists(req, res, next) {
   }
 }
 
-async function validReservationUpdate(req, res, next) {
+async function validReservationStatusUpdate(req, res, next) {
   const id = res.locals.res.reservation_id;
   const status = req.body.data.status;
   try {
@@ -129,7 +135,7 @@ async function validReservationUpdate(req, res, next) {
     if (!validStatus.includes(status)) {
       throw {
         status: 400,
-        message: `status must be either booked, seated, or finished, not ${status}`,
+        message: `status must be either booked, seated, finished, or cancelled, not ${status}`,
       };
     }
     next();
@@ -172,7 +178,7 @@ async function create(req, res, next) {
   }
 }
 
-async function update(req, res, next) {
+async function statusUpdate(req, res, next) {
   const id = res.locals.res.reservation_id;
   const status = req.body.data.status;
   try {
@@ -184,9 +190,30 @@ async function update(req, res, next) {
   }
 }
 
+async function resUpdate(req, res, next) {
+  const id = res.locals.res.reservation_id;
+  const data = req.body.data;
+  try {
+    res.status(200).json({
+      data: await service.updateReservation(
+        id,
+        data.first_name,
+        data.last_name,
+        data.mobile_number,
+        data.reservation_date,
+        data.reservation_time,
+        data.people
+      ),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   list: [list],
   create: [hasValidProperties, isDuringHours, create],
   read: [reservationExists, read],
-  update: [reservationExists, validReservationUpdate, update],
+  statusUpdate: [reservationExists, validReservationStatusUpdate, statusUpdate],
+  resUpdate: [hasValidProperties, isDuringHours, reservationExists, resUpdate],
 };
