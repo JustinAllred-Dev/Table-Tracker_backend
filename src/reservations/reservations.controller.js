@@ -147,9 +147,17 @@ async function read(req, res) {
 }
 
 async function list(req, res, next) {
-  const { date } = req.query;
+  const { date, mobile_number } = req.query;
   try {
-    res.status(200).json({ data: await service.listByDate(date) });
+    if (date) {
+      res.status(200).json({ data: await service.listByDate(date) });
+    } else if (mobile_number) {
+      const reservations = await service.listByNumber(mobile_number);
+      if (!reservations) {
+        throw { status: 400, message: "No reservations found" };
+      }
+      res.status(200).json({ data: reservations });
+    }
   } catch (err) {
     next(err);
   }

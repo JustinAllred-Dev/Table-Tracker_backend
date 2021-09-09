@@ -8,6 +8,16 @@ function listByDate(date) {
     .whereNot({ status: "finished" })
     .orderBy("reservation_time", "asc");
 }
+function listByNumber(mobile_number) {
+  return knex("reservations")
+    .select("*")
+    .whereRaw(
+      "translate(mobile_number, '() -', '') like ?",
+      `%${mobile_number.replace(/\D/g, "")}%`
+    )
+    .orderBy("reservation_date");
+}
+
 function read(reservationId) {
   return knex("reservations").where({ reservation_id: reservationId }).first();
 }
@@ -27,4 +37,4 @@ function updateStatus(id, status) {
     .then((newStatus) => newStatus[0]);
 }
 
-module.exports = { listByDate, read, create, updateStatus };
+module.exports = { listByDate, listByNumber, read, create, updateStatus };
